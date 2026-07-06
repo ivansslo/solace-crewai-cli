@@ -1,13 +1,8 @@
 #!/data/data/com.termux/files/usr/bin/bash
 # ============================================================
-#  Solace Hermes — Termux Full Installer
-#  Ubuntu rootfs + CrewAI + Tailscale + Project
-#  Semua otomatis, tidak perlu input manual
-#
-#  Usage: bash install.sh
+#  Solace Hermes — Termux Full Installer v3
+#  1 script, 1 session, tidak pernah berhenti
 # ============================================================
-
-set -e
 
 RED='\033[0;31m'
 GRN='\033[0;32m'
@@ -18,286 +13,168 @@ RST='\033[0m'
 
 clear
 echo -e "${CYN}╔═══════════════════════════════════════════════╗${RST}"
-echo -e "${CYN}║${RST}  ${MAG}⚡ SOLACE HERMES — FULL INSTALLER${RST}           ${CYN}║${RST}"
-echo -e "${CYN}║${RST}  ${GRN}Ubuntu + CrewAI + Tailscale + Project${RST}       ${CYN}║${RST}"
+echo -e "${CYN}║${RST}  ${MAG}⚡ SOLACE HERMES — FULL INSTALLER v3${RST}        ${CYN}║${RST}"
 echo -e "${CYN}╚═══════════════════════════════════════════════╝${RST}"
 echo ""
 
-# ---- STEP 1: Termux packages ----
+# ---- STEP 1: Termux ----
 echo -e "${GRN}📦 [1/4] Termux packages...${RST}"
 export DEBIAN_FRONTEND=noninteractive
-pkg update -y -o Dpkg::Options::="--force-confnew" 2>/dev/null || pkg update -y
-pkg upgrade -y 2>/dev/null || true
-pkg install -y proot-distro git curl wget openssh termux-api 2>/dev/null || pkg install -y proot-distro git curl wget openssh
+pkg update -y 2>/dev/null || true
+pkg install -y proot-distro git curl wget openssh 2>/dev/null || true
 echo -e "${GRN}  ✅ Termux ready${RST}"
 
-# ---- STEP 2: Ubuntu rootfs ----
+# ---- STEP 2: Ubuntu ----
 echo ""
 echo -e "${GRN}🐧 [2/4] Ubuntu rootfs...${RST}"
-if proot-distro list --installed 2>/dev/null | grep -q ubuntu; then
-    echo -e "${YLW}  ℹ️ Ubuntu sudah ada, skip install${RST}"
-else
-    proot-distro install ubuntu
-fi
+proot-distro install ubuntu 2>/dev/null || echo -e "${YLW}  ℹ️ Ubuntu sudah ada, lanjut${RST}"
 echo -e "${GRN}  ✅ Ubuntu ready${RST}"
 
-# ---- STEP 3: SEMUA setup di dalam Ubuntu (1 session, tidak keluar) ----
+# ---- STEP 3: Semua di dalam Ubuntu ----
 echo ""
-echo -e "${GRN}🔧 [3/4] Setup Ubuntu + CrewAI + Tailscale + Project...${RST}"
-echo -e "${YLW}  ⏳ Ini butuh 10-30 menit, jangan tutup Termux${RST}"
+echo -e "${GRN}🔧 [3/4] Setup semua di Ubuntu (10-30 menit)...${RST}"
 echo ""
 
-proot-distro login ubuntu -- bash -c '
-set -e
+proot-distro login ubuntu -- bash << 'UBUNTUBLOCK'
 export DEBIAN_FRONTEND=noninteractive
 
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  [3a] System packages..."
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "━━━ [3a] System packages ━━━"
 apt update -qq 2>/dev/null
-apt upgrade -y -qq 2>/dev/null || true
-apt install -y -qq python3 python3-pip python3-venv python3-dev \
-    git curl wget build-essential nodejs npm \
-    ca-certificates gnupg jq libffi-dev libssl-dev 2>/dev/null
+apt install -y -qq python3 python3-pip python3-venv python3-dev git curl wget build-essential libffi-dev libssl-dev nodejs npm ca-certificates jq 2>/dev/null || true
 echo "  ✅ System packages done"
-echo ""
 
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  [3b] Tailscale..."
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "━━━ [3b] Tailscale ━━━"
 if command -v tailscale >/dev/null 2>&1; then
     echo "  ✅ Tailscale sudah ada"
 else
-    curl -fsSL https://tailscale.com/install.sh | sh 2>/dev/null || echo "  ⚠️ Tailscale install via script gagal, coba manual..."
-    if ! command -v tailscale >/dev/null 2>&1; then
-        apt install -y -qq tailscale 2>/dev/null || echo "  ℹ️ Tailscale akan diakses via API"
-    fi
+    curl -fsSL https://tailscale.com/install.sh | sh 2>/dev/null || true
+    echo "  ✅ Tailscale done"
 fi
-echo "  ✅ Tailscale done"
+
 echo ""
-
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  [3c] Python venv + CrewAI..."
-echo "  ⏳ Bagian ini paling lama, sabar..."
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "━━━ [3c] CrewAI (sabar, paling lama) ━━━"
 cd /root
-if [ -d crewai-env ]; then
-    echo "  ℹ️ venv sudah ada, activate..."
-    source crewai-env/bin/activate
-else
+if [ ! -d crewai-env ]; then
     python3 -m venv crewai-env
-    source crewai-env/bin/activate
 fi
-
-pip install --upgrade pip setuptools wheel -q
-echo "  ✅ pip upgraded"
-
-echo "  → Installing CrewAI..."
+. crewai-env/bin/activate
+pip install --upgrade pip setuptools wheel -q 2>/dev/null
+echo "  → pip ready, installing crewai..."
 pip install crewai crewai-tools 2>&1 | tail -5
 echo ""
+crewai version 2>/dev/null || python3 -c "import crewai;print('crewai',crewai.__version__)" 2>/dev/null || echo "  ⚠️ crewai partial"
+echo "  ✅ CrewAI done"
 
-# Verify
-if crewai version 2>/dev/null; then
-    echo "  ✅ CrewAI installed"
-elif python3 -c "import crewai; print(crewai.__version__)" 2>/dev/null; then
-    echo "  ✅ CrewAI module installed"
-else
-    echo "  ⚠️ CrewAI install mungkin belum lengkap, lanjut..."
-fi
 echo ""
-
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  [3d] Hermes Crew Project..."
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-mkdir -p /root/hermes-crew/src/hermes_crew/config
+echo "━━━ [3d] Hermes Crew Project ━━━"
+mkdir -p /root/hermes-crew/src/hermes_crew
 cd /root/hermes-crew
 
-# pyproject.toml
-cat > pyproject.toml << PYPROJ
-[project]
-name = "hermes-crew"
-version = "1.0.0"
-description = "Solace Hermes AI Agent Crew"
-requires-python = ">=3.10"
-dependencies = ["crewai[tools]>=0.11"]
-
-[build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.backends._legacy:_Backend"
-PYPROJ
-
-cat > src/hermes_crew/__init__.py << INITPY
+cat > src/hermes_crew/__init__.py << 'PY1'
 pass
-INITPY
+PY1
 
-cat > src/hermes_crew/crew.py << CREWPY
+cat > src/hermes_crew/crew.py << 'PY2'
 from crewai import Agent, Crew, Process, Task
-import os
 
 researcher = Agent(
     role="Research Specialist",
     goal="Find accurate, comprehensive information on any topic",
-    backstory="Expert researcher with years of experience. Part of Solace Hermes AI Hub.",
-    verbose=True,
-    allow_delegation=False,
+    backstory="Expert researcher. Part of Solace Hermes AI Hub.",
+    verbose=True, allow_delegation=False,
 )
-
 analyst = Agent(
     role="Data Analyst",
-    goal="Analyze findings and extract actionable insights and patterns",
-    backstory="Skilled analyst who finds patterns and provides clear recommendations.",
-    verbose=True,
-    allow_delegation=False,
+    goal="Analyze findings and extract actionable insights",
+    backstory="Skilled analyst who finds patterns and recommendations.",
+    verbose=True, allow_delegation=False,
 )
-
 writer = Agent(
     role="Content Writer",
-    goal="Create clear, well-structured reports from research and analysis",
-    backstory="Professional writer who creates concise, accurate content.",
-    verbose=True,
-    allow_delegation=False,
+    goal="Create clear, well-structured reports",
+    backstory="Professional writer who creates concise content.",
+    verbose=True, allow_delegation=False,
 )
 
 def run_crew(topic):
-    research_task = Task(
-        description="Research thoroughly: " + topic + ". Find key facts and sources.",
-        expected_output="Structured research summary with key findings and sources.",
-        agent=researcher,
-    )
-    analysis_task = Task(
-        description="Analyze research findings about: " + topic + ". Identify patterns.",
-        expected_output="Analysis with insights, conclusions, and recommendations.",
-        agent=analyst,
-    )
-    report_task = Task(
-        description="Write a report about: " + topic + ". Combine research and analysis.",
-        expected_output="Professional report (300-500 words) in markdown.",
-        agent=writer,
-    )
-    crew = Crew(
-        agents=[researcher, analyst, writer],
-        tasks=[research_task, analysis_task, report_task],
-        process=Process.sequential,
-        verbose=True,
-    )
-    result = crew.kickoff()
-    return str(result)
+    t1 = Task(description="Research: " + topic, expected_output="Research summary with key findings", agent=researcher)
+    t2 = Task(description="Analyze: " + topic, expected_output="Analysis with insights and recommendations", agent=analyst)
+    t3 = Task(description="Write report: " + topic, expected_output="Professional report in markdown", agent=writer)
+    crew = Crew(agents=[researcher, analyst, writer], tasks=[t1, t2, t3], process=Process.sequential, verbose=True)
+    return str(crew.kickoff())
 
 if __name__ == "__main__":
     import sys
     topic = " ".join(sys.argv[1:]) if len(sys.argv) > 1 else "AI agents in 2026"
     print(run_crew(topic))
-CREWPY
+PY2
 
-cat > src/hermes_crew/main.py << MAINPY
-#!/usr/bin/env python3
-import sys
-sys.path.insert(0, "/root/hermes-crew/src")
-from hermes_crew.crew import run_crew
-
-def main():
-    topic = " ".join(sys.argv[1:]) if len(sys.argv) > 1 else "AI agents in 2026"
-    print("\n🤖 Running Hermes Crew: " + topic + "\n")
-    result = run_crew(topic)
-    print("\n📄 Result:\n" + result)
-
-if __name__ == "__main__":
-    main()
-MAINPY
-
-# .env (placeholder, user fills in later)
-cat > .env << DOTENV
-GROQ_API_KEY=YOUR_GROQ_KEY_HERE
-OPENAI_API_KEY=YOUR_GROQ_KEY_HERE
-CREWAI_TOKEN=YOUR_CREWAI_TOKEN_HERE
+cat > .env << 'ENV1'
+GROQ_API_KEY=YOUR_KEY_HERE
+OPENAI_API_KEY=YOUR_KEY_HERE
+CREWAI_TOKEN=YOUR_TOKEN_HERE
 CREWAI_TELEMETRY_OPT_OUT=true
 SOLACE_URL=https://mr-connection-mwc1f9igml1.messaging.solace.cloud:9443
 SOLACE_USER=solace-cloud-client
-SOLACE_PASS=YOUR_SOLACE_PASS
-TAILSCALE_API=YOUR_TAILSCALE_KEY
-DOTENV
+SOLACE_PASS=YOUR_PASS_HERE
+ENV1
 
-echo "  ✅ Project files created"
-echo ""
-
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  [3e] Launcher scripts..."
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
-cat > /root/hermes << LAUNCHER
+cat > /root/hermes << 'HLNCH'
 #!/bin/bash
-source /root/crewai-env/bin/activate 2>/dev/null
+. /root/crewai-env/bin/activate 2>/dev/null
 cd /root/hermes-crew
-source .env 2>/dev/null
+. .env 2>/dev/null
 export GROQ_API_KEY OPENAI_API_KEY CREWAI_TELEMETRY_OPT_OUT CREWAI_TOKEN
-
-case "\$1" in
-    run|crew)
-        shift
-        PYTHONPATH=/root/hermes-crew/src python3 -m hermes_crew.main "\$@"
-        ;;
-    deploy)
-        crewai deploy 2>/dev/null || echo "Run: crewai login first, then crewai deploy"
-        ;;
-    version)
-        crewai version 2>/dev/null || python3 -c "import crewai;print(crewai.__version__)" 2>/dev/null || echo "crewai not found"
-        ;;
+case "$1" in
+    run|crew) shift; PYTHONPATH=src python3 -m hermes_crew.crew "$@" ;;
+    deploy) crewai deploy ;;
+    version) crewai version 2>/dev/null || python3 -c "import crewai;print(crewai.__version__)" 2>/dev/null ;;
     status)
         echo "🤖 Solace Hermes Status"
-        echo "  CrewAI: \$(crewai version 2>/dev/null || python3 -c 'import crewai;print(crewai.__version__)' 2>/dev/null || echo 'not found')"
-        echo "  Python: \$(python3 --version 2>&1)"
-        echo "  Project: /root/hermes-crew"
-        echo "  Agents: Researcher, Analyst, Writer"
-        curl -s -m 5 https://hermes-cloudflare.certveis.workers.dev/health >/dev/null 2>&1 && echo "  Gateway: ✅ Online" || echo "  Gateway: ❌ Offline"
+        crewai version 2>/dev/null || python3 -c "import crewai;print('crewai',crewai.__version__)" 2>/dev/null
+        python3 --version
+        echo "Project: /root/hermes-crew"
+        curl -s -m 5 https://hermes-cloudflare.certveis.workers.dev/health 2>/dev/null && echo "Gateway: Online" || echo "Gateway: check connection"
         ;;
-    env)
-        nano /root/hermes-crew/.env 2>/dev/null || vi /root/hermes-crew/.env
-        ;;
-    *)
-        echo "⚡ Solace Hermes CLI"
-        echo ""
-        echo "  hermes run [topic]    Run crew on a topic"
-        echo "  hermes deploy         Deploy to CrewAI Cloud"
-        echo "  hermes version        Show version"
-        echo "  hermes status         Check system status"
-        echo "  hermes env            Edit API keys"
-        echo ""
-        echo "  Example: hermes run \"AI agents in 2026\""
-        ;;
+    env) nano .env 2>/dev/null || vi .env ;;
+    *) echo "⚡ Solace Hermes CLI"; echo ""; echo "  hermes run [topic]   Run AI crew"; echo "  hermes deploy        Deploy to CrewAI Cloud"; echo "  hermes version       Show version"; echo "  hermes status        System check"; echo "  hermes env           Edit API keys"; echo ""; echo "  Example: hermes run \"AI agents 2026\"" ;;
 esac
-LAUNCHER
+HLNCH
 chmod +x /root/hermes
-echo "  ✅ /root/hermes launcher ready"
+echo "  ✅ Project + launcher done"
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  ✅ ALL UBUNTU SETUP COMPLETE"
+echo "  ✅ UBUNTU SETUP COMPLETE"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-'
+UBUNTUBLOCK
 
-echo -e "${GRN}  ✅ Ubuntu setup complete${RST}"
+echo -e "${GRN}  ✅ Ubuntu setup done${RST}"
 
-# ---- STEP 4: Termux shortcuts ----
+# ---- STEP 4: Termux shortcuts (SETELAH ubuntu selesai) ----
 echo ""
 echo -e "${GRN}🚀 [4/4] Termux shortcuts...${RST}"
 
-cat > $PREFIX/bin/ubuntu << 'UBSH'
+cat > $PREFIX/bin/ubuntu << 'S1'
 #!/data/data/com.termux/files/usr/bin/bash
 proot-distro login ubuntu
-UBSH
+S1
 chmod +x $PREFIX/bin/ubuntu
 
-cat > $PREFIX/bin/hermes << 'HMSH'
+cat > $PREFIX/bin/hermes << 'S2'
 #!/data/data/com.termux/files/usr/bin/bash
 if [ $# -eq 0 ]; then
     proot-distro login ubuntu -- /root/hermes
 else
     proot-distro login ubuntu -- /root/hermes "$@"
 fi
-HMSH
+S2
 chmod +x $PREFIX/bin/hermes
 
-echo -e "${GRN}  ✅ Shortcuts ready${RST}"
+echo -e "${GRN}  ✅ Shortcuts created:${RST}"
+echo -e "    ${CYN}ubuntu${RST}   → masuk Ubuntu shell"
+echo -e "    ${CYN}hermes${RST}   → jalankan Hermes CLI"
 
 # ---- DONE ----
 echo ""
@@ -305,16 +182,12 @@ echo -e "${CYN}╔════════════════════�
 echo -e "${CYN}║${RST}  ${GRN}✅ INSTALLATION COMPLETE!${RST}                    ${CYN}║${RST}"
 echo -e "${CYN}╚═══════════════════════════════════════════════╝${RST}"
 echo ""
-echo -e "${MAG}⚡ Commands:${RST}"
 echo -e "  ${CYN}ubuntu${RST}                     Enter Ubuntu"
 echo -e "  ${CYN}hermes run \"topic\"${RST}         Run AI crew"
 echo -e "  ${CYN}hermes deploy${RST}              Deploy to Cloud"
 echo -e "  ${CYN}hermes status${RST}              System check"
 echo -e "  ${CYN}hermes env${RST}                 Edit API keys"
 echo ""
-echo -e "${YLW}🔑 PENTING: Setup API keys dulu!${RST}"
-echo -e "  Jalankan: ${CYN}hermes env${RST}"
-echo -e "  Ganti YOUR_GROQ_KEY_HERE dengan key asli"
-echo ""
-echo -e "${GRN}💡 First run: ${CYN}hermes run \"AI agents 2026\"${RST}"
+echo -e "${YLW}🔑 Setup keys: ${CYN}hermes env${RST}"
+echo -e "${GRN}💡 Test: ${CYN}hermes run \"AI agents 2026\"${RST}"
 echo ""
