@@ -1,40 +1,19 @@
 import os, sys
 
-# Force Groq as LLM provider
-os.environ["OPENAI_API_KEY"] = os.environ.get("GROQ_API_KEY", "")
+key = os.environ.get("GROQ_API_KEY", "")
+os.environ["OPENAI_API_KEY"] = key
+os.environ["OPENAI_API_BASE"] = "https://api.groq.com/openai/v1"
+os.environ["OPENAI_MODEL_NAME"] = "llama-3.3-70b-versatile"
 
-from crewai import Agent, Crew, Process, Task, LLM
+from crewai import Agent, Crew, Process, Task
 
-llm = LLM(
-    model="groq/llama-3.3-70b-versatile",
-    api_key=os.environ.get("GROQ_API_KEY", ""),
-)
+researcher = Agent(role="Research Specialist", goal="Find accurate, comprehensive information on any topic", backstory="Expert researcher with years of experience. Part of Solace Hermes AI Hub.", verbose=True, allow_delegation=False)
+analyst = Agent(role="Data Analyst", goal="Analyze findings and extract actionable insights and patterns", backstory="Skilled analyst who finds patterns and provides clear recommendations.", verbose=True, allow_delegation=False)
+writer = Agent(role="Content Writer", goal="Create clear, well-structured reports from research and analysis", backstory="Professional writer who creates concise, accurate content.", verbose=True, allow_delegation=False)
 
-researcher = Agent(
-    role="Research Specialist",
-    goal="Find accurate information on any topic",
-    backstory="Expert researcher. Part of Solace Hermes AI Hub.",
-    llm=llm, verbose=True, allow_delegation=False,
-)
-analyst = Agent(
-    role="Data Analyst",
-    goal="Analyze findings and extract insights",
-    backstory="Skilled analyst who finds patterns.",
-    llm=llm, verbose=True, allow_delegation=False,
-)
-writer = Agent(
-    role="Content Writer",
-    goal="Create clear reports from research",
-    backstory="Professional writer for concise content.",
-    llm=llm, verbose=True, allow_delegation=False,
-)
-
-def run_crew(topic):
-    t1 = Task(description="Research: " + topic, expected_output="Research summary", agent=researcher)
-    t2 = Task(description="Analyze: " + topic, expected_output="Analysis with insights", agent=analyst)
-    t3 = Task(description="Write report: " + topic, expected_output="Report in markdown", agent=writer)
-    return str(Crew(agents=[researcher, analyst, writer], tasks=[t1, t2, t3], process=Process.sequential, verbose=True).kickoff())
-
-if __name__ == "__main__":
-    topic = " ".join(sys.argv[1:]) or "AI agents in 2026"
-    print(run_crew(topic))
+topic = " ".join(sys.argv[1:]) or "AI agents in 2026"
+t1 = Task(description="Research thoroughly: " + topic + ". Find key facts, recent developments, and sources.", expected_output="Structured research summary with key findings and sources.", agent=researcher)
+t2 = Task(description="Analyze the research findings about: " + topic + ". Identify patterns, draw conclusions.", expected_output="Analysis report with insights, conclusions, and recommendations.", agent=analyst)
+t3 = Task(description="Write a comprehensive report about: " + topic + ". Combine research and analysis.", expected_output="Professional report (300-500 words) in clean markdown format.", agent=writer)
+result = Crew(agents=[researcher, analyst, writer], tasks=[t1, t2, t3], process=Process.sequential, verbose=True).kickoff()
+print(result)
